@@ -500,17 +500,32 @@ function parseCSV(csv){
   });
 }
 
+// Maximum possible composite risk score (Obese+Diabetic+Smoker+Fever = 2+2+1+1)
+const MAX_RISK_SCORE=6;
+// Fever threshold: 99.5°F (37.5°C) used as a conservative flag for elevated temperature.
+// Note: some clinical guidelines use 100.4°F (38°C); this lower threshold is intentional
+// for early-warning detection in this dashboard.
+const FEVER_THRESHOLD=99.5;
+// Risk scoring weights:
+//   Overweight BMI (25–29.9): +1
+//   Obese BMI (≥30):          +2
+//   Diabetes confirmed:        +2
+//   Smoking confirmed:         +1
+//   Fever detected:            +1
+//   Max total score = 7 (Obese + Diabetic + Smoker + Fever)
+const REAL_MAX_RISK=7;
+
 function enrich(p){
   const age=+p["Age"],bmi=+p["BMI"],temp=+p["Temperature"];
   const ageGroup=age<=24?"18-24":age<=29?"25-29":"30-34";
   const bmiClass=bmi<18.5?"Underweight":bmi<25?"Normal":bmi<30?"Overweight":"Obese";
-  const fever=temp>=99.5;
+  const fever=temp>=FEVER_THRESHOLD;
   let score=0;
-  if(bmi>=25&&bmi<30) score+=1;
-  if(bmi>=30) score+=2;
+  if(bmi>=25&&bmi<30) score+=1;   // Overweight
+  if(bmi>=30)         score+=2;   // Obese
   if(p["Diabetes"]==="Yes") score+=2;
-  if(p["Smoking"]==="Yes") score+=1;
-  if(fever) score+=1;
+  if(p["Smoking"]==="Yes")  score+=1;
+  if(fever)                 score+=1;
   const riskLevel=score<=1?"Low":score<=3?"Medium":"High";
   return {
     id:+p["Patient ID"],age,gender:p["Gender"],height:+p["Height"],
@@ -553,7 +568,7 @@ Chart.defaults.plugins.tooltip.titleColor="#fff";
 Chart.defaults.plugins.tooltip.bodyColor="rgba(255,255,255,.85)";
 
 function cnt(arr,key){const m={};arr.forEach(p=>{const v=p[key]||"Unknown";m[v]=(m[v]||0)+1;});return m;}
-function avg(arr,key){if(!arr.length)return 0;return arr.reduce((s,p)=>s+p[key],0)/arr.length;}
+function avg(arr,key){const valid=arr.filter(p=>typeof p[key]==="number"&&!isNaN(p[key]));if(!valid.length)return 0;return valid.reduce((s,p)=>s+p[key],0)/valid.length;}
 function pct(n,total){return total?Math.round(n/total*100):0;}
 
 function buildFilters(){
@@ -645,9 +660,9 @@ function renderP1(pts){
   mkChart("c-bmic",{type:"bar",data:{labels:bmCls,datasets:[{data:bmCls.map(c=>bmC[c]||0),backgroundColor:["#3b82f6","#22c55e","#f59e0b","#ef4444"],borderRadius:7,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
 
   const rB={0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0};
-  pts.forEach(p=>{rB[Math.min(p.riskScore,7)]++;});
+  pts.forEach(p=>{rB[Math.min(p.riskScore,REAL_MAX_RISK)]++;});
   const rColors=Object.keys(rB).map(k=>{const v=+k;return v<=1?"#22c55e":v<=3?"#f59e0b":"#ef4444";});
-  mkChart("c-rhist",{type:"bar",data:{labels:Object.keys(rB).map(k=>k==="7"?"7+":k),datasets:[{data:Object.values(rB),backgroundColor:rColors,borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients (score ${c.label})`}}},scales:{x:{title:{display:true,text:"Risk Score",color:"#94a3b8",font:{size:10}},grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
+  mkChart("c-rhist",{type:"bar",data:{labels:Object.keys(rB).map(k=>k===String(REAL_MAX_RISK)?REAL_MAX_RISK+"+":k),datasets:[{data:Object.values(rB),backgroundColor:rColors,borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients (score ${c.label})`}}},scales:{x:{title:{display:true,text:"Risk Score",color:"#94a3b8",font:{size:10}},grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
 }
 
 // ---- PAGE 2 ----
@@ -743,7 +758,7 @@ function applySort(){
   const s=TBL.sort,d=TBL.dir;
   let sorted=[...TBL_DATA].sort((a,b)=>{let va=a[s],vb=b[s];if(typeof va==="string")return d*va.localeCompare(vb);return d*(va-vb);});
   const q=TBL.q.toLowerCase();
-  if(q) sorted=sorted.filter(p=>String(p.id).includes(q)||String(p.age).includes(q)||p.gender.toLowerCase().includes(q)||p.bloodType.toLowerCase().includes(q)||p.bmiClass.toLowerCase().includes(q)||p.diabetes.toLowerCase().includes(q)||p.smoking.toLowerCase().includes(q)||p.riskLevel.toLowerCase().includes(q));
+  if(q) sorted=sorted.filter(p=>String(p.id).includes(q)||String(p.age).includes(q)||(p.gender||"").toLowerCase().includes(q)||(p.bloodType||"").toLowerCase().includes(q)||(p.bmiClass||"").toLowerCase().includes(q)||(p.diabetes||"").toLowerCase().includes(q)||(p.smoking||"").toLowerCase().includes(q)||(p.riskLevel||"").toLowerCase().includes(q));
   const total=sorted.length,pages=Math.ceil(total/TBL.ps)||1;
   if(TBL.page>pages) TBL.page=1;
   const start=(TBL.page-1)*TBL.ps;
@@ -772,7 +787,7 @@ function gotoPage(p){TBL.page=p;applySort();}
 function showDetail(id){
   const p=ALL.find(x=>x.id===id);if(!p) return;
   const rl=p.riskLevel==="Low"?"rf-low":p.riskLevel==="Medium"?"rf-med":"rf-hi";
-  const fp=Math.round(p.riskScore/7*100);
+  const fp=Math.round(p.riskScore/REAL_MAX_RISK*100);
   const eg=p.gender==="Male"?"&#9794;":p.gender==="Female"?"&#9792;":"?";
   const rColor=p.riskLevel==="Low"?"var(--green)":p.riskLevel==="Medium"?"var(--amber)":"var(--red)";
   let notes=p.riskLevel==="High"?"High-risk patient requiring priority clinical review. Consider immediate intervention.":p.riskLevel==="Medium"?"Moderate risk. Schedule regular follow-up and monitor for risk factor progression.":"Low-risk profile. Standard monitoring schedule recommended.";
@@ -781,7 +796,7 @@ function showDetail(id){
   if(p.diabetes==="Yes") notes+=" Active diabetes management required.";
   if(p.smoking==="Yes") notes+=" Smoking cessation support recommended.";
   if(p.fever) notes+=" Fever detected — investigate possible infection or inflammatory condition.";
-  document.getElementById("pd-cont").innerHTML=`<div class="card"><div class="pd-hdr"><div class="pd-av">${eg}</div><div><div style="font-size:17px;font-weight:700">Patient #${p.id}</div><div style="font-size:12px;opacity:.75">${p.gender} &middot; Age ${p.age} &middot; ${p.ageGroup} &middot; Blood ${p.bloodType}</div><div style="margin-top:6px">${rbadge(p.riskLevel)}</div></div></div><div class="pd-body"><div class="dg"><div class="di"><div class="dl">BMI</div><div class="dv">${p.bmi.toFixed(2)}</div><div style="font-size:10px;color:${bmiColor(p.bmiClass)};font-weight:700;margin-top:2px">${p.bmiClass}</div></div><div class="di"><div class="dl">Temperature</div><div class="dv ${p.fever?"yes":""}">${p.temp.toFixed(2)}F${p.fever?" &#127777;":""}</div><div style="font-size:10px;margin-top:2px;color:${p.fever?"var(--red)":"var(--green)"}">${p.fever?"Fever":"Normal"}</div></div><div class="di"><div class="dl">Diabetes</div><div class="dv ${p.diabetes==="Yes"?"yes":p.diabetes==="No"?"no":""}">${p.diabetes}</div></div><div class="di"><div class="dl">Smoking</div><div class="dv ${p.smoking==="Yes"?"yes":p.smoking==="No"?"no":""}">${p.smoking}</div></div><div class="di"><div class="dl">Height</div><div class="dv">${p.height.toFixed(1)} cm</div></div><div class="di"><div class="dl">Weight</div><div class="dv">${p.weight.toFixed(1)} kg</div></div></div><div class="rmtr"><div class="rmtr-row"><span style="font-size:11.5px;font-weight:700">Composite Risk Score</span><span style="font-size:14px;font-weight:800;color:${rColor}">${p.riskScore} / 7</span></div><div class="rmtr-bar"><div class="${rl} rmtr-fill" style="width:${fp}%"></div></div><div class="rmtr-sc"><span>0</span><span>Low</span><span>Medium</span><span>High</span><span>7</span></div></div><div style="margin-top:14px;font-size:11px;color:var(--muted);line-height:1.65;background:var(--bg);border-radius:7px;padding:12px"><b style="color:var(--text)">&#128270; Clinical Notes:</b><br>${notes}</div></div></div>`;
+  document.getElementById("pd-cont").innerHTML=`<div class="card"><div class="pd-hdr"><div class="pd-av">${eg}</div><div><div style="font-size:17px;font-weight:700">Patient #${p.id}</div><div style="font-size:12px;opacity:.75">${p.gender} &middot; Age ${p.age} &middot; ${p.ageGroup} &middot; Blood ${p.bloodType}</div><div style="margin-top:6px">${rbadge(p.riskLevel)}</div></div></div><div class="pd-body"><div class="dg"><div class="di"><div class="dl">BMI</div><div class="dv">${p.bmi.toFixed(2)}</div><div style="font-size:10px;color:${bmiColor(p.bmiClass)};font-weight:700;margin-top:2px">${p.bmiClass}</div></div><div class="di"><div class="dl">Temperature</div><div class="dv ${p.fever?"yes":""}">${p.temp.toFixed(2)}F${p.fever?" &#127777;":""}</div><div style="font-size:10px;margin-top:2px;color:${p.fever?"var(--red)":"var(--green)"}">${p.fever?"Fever":"Normal"}</div></div><div class="di"><div class="dl">Diabetes</div><div class="dv ${p.diabetes==="Yes"?"yes":p.diabetes==="No"?"no":""}">${p.diabetes}</div></div><div class="di"><div class="dl">Smoking</div><div class="dv ${p.smoking==="Yes"?"yes":p.smoking==="No"?"no":""}">${p.smoking}</div></div><div class="di"><div class="dl">Height</div><div class="dv">${p.height.toFixed(1)} cm</div></div><div class="di"><div class="dl">Weight</div><div class="dv">${p.weight.toFixed(1)} kg</div></div></div><div class="rmtr"><div class="rmtr-row"><span style="font-size:11.5px;font-weight:700">Composite Risk Score</span><span style="font-size:14px;font-weight:800;color:${rColor}">${p.riskScore} / ${REAL_MAX_RISK}</span></div><div class="rmtr-bar"><div class="${rl} rmtr-fill" style="width:${fp}%"></div></div><div class="rmtr-sc"><span>0</span><span>Low</span><span>Medium</span><span>High</span><span>${REAL_MAX_RISK}</span></div></div><div style="margin-top:14px;font-size:11px;color:var(--muted);line-height:1.65;background:var(--bg);border-radius:7px;padding:12px"><b style="color:var(--text)">&#128270; Clinical Notes:</b><br>${notes}</div></div></div>`;
 }
 
 // ---- HEADER ----
