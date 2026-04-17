@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Clinical Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0f2d6e;--navy2:#1e40af;--teal:#0d9488;--teal2:#14b8a6;
+      --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+      --text:#0f172a;--muted:#64748b;
+      --green:#16a34a;--green-bg:#dcfce7;
+      --amber:#d97706;--amber-bg:#fef3c7;
+      --red:#dc2626;--red-bg:#fee2e2;
+      --blue:#2563eb;--blue-bg:#dbeafe;
+      --shadow:0 2px 8px rgba(0,0,0,.08);
+      --r:10px;--sidebar:260px;--hdr:66px
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+    .hdr{position:fixed;top:0;left:0;right:0;height:var(--hdr);background:var(--navy);display:flex;align-items:center;padding:0 20px;gap:20px;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .brand{display:flex;align-items:center;gap:10px;min-width:185px}
+    .brand-ico{width:38px;height:38px;background:var(--teal);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+    .brand h1{font-size:14px;font-weight:700;color:#fff}
+    .brand span{font-size:10px;color:rgba(255,255,255,.55);letter-spacing:.5px}
+    .nav{display:flex;gap:3px;flex:1}
+    .nbtn{padding:7px 14px;border:none;border-radius:7px;background:transparent;color:rgba(255,255,255,.6);cursor:pointer;font-size:12.5px;font-weight:500;transition:all .2s;white-space:nowrap}
+    .nbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nbtn.on{background:var(--teal);color:#fff}
+    .hdr-pills{display:flex;gap:10px}
+    .pill{background:rgba(255,255,255,.12);border-radius:20px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,.8)}
+    .pill b{color:#fff}
+    .body{display:flex;margin-top:var(--hdr);min-height:calc(100vh - var(--hdr))}
+    .sb{position:fixed;top:var(--hdr);left:0;width:var(--sidebar);height:calc(100vh - var(--hdr));background:var(--card);border-right:1px solid var(--border);overflow-y:auto;padding:14px;z-index:50}
+    .sb-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .sb-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
+    .btn-reset{padding:4px 9px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-weight:600}
+    .btn-reset:hover{opacity:.85}
+    .fg{margin-bottom:16px}
+    .fl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+    .fo{display:flex;flex-direction:column;gap:3px}
+    .fcheck{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;cursor:pointer;font-size:12.5px;user-select:none;transition:background .15s}
+    .fcheck:hover{background:var(--bg)}
+    .fcheck input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--teal)}
+    .fcnt{margin-left:auto;font-size:10px;background:var(--bg);color:var(--muted);padding:1px 6px;border-radius:9px}
+    .slid-wrap{padding:3px 0}
+    .slid{width:100%;accent-color:var(--teal);cursor:pointer}
+    .slid-row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px}
+    .slid-val{text-align:center;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:5px}
+    .main{margin-left:var(--sidebar);flex:1;padding:22px;max-width:calc(100vw - var(--sidebar))}
+    .page{display:none}.page.on{display:block}
+    .ph{margin-bottom:18px}
+    .ph h2{font-size:20px;font-weight:700}
+    .ph p{font-size:12.5px;color:var(--muted);margin-top:3px}
+    .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+    .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .g21{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+    .gap{margin-bottom:18px}
+    .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden}
+    .card-h{padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between}
+    .card-t{font-size:12.5px;font-weight:700}
+    .card-s{font-size:11px;color:var(--muted);margin-top:2px}
+    .card-b{padding:14px 18px 18px}
+    .cc{position:relative}
+    .kpi{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);position:relative;overflow:hidden}
+    .kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px}
+    .kpi.knavy::before{background:var(--navy)}.kpi.kteal::before{background:var(--teal)}
+    .kpi.kamber::before{background:var(--amber)}.kpi.kred::before{background:var(--red)}
+    .kpi.kgreen::before{background:var(--green)}
+    .kpi-ico{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:10px}
+    .kpi.knavy .kpi-ico{background:var(--blue-bg)}.kpi.kteal .kpi-ico{background:#ccfbf1}
+    .kpi.kamber .kpi-ico{background:var(--amber-bg)}.kpi.kred .kpi-ico{background:var(--red-bg)}
+    .kpi.kgreen .kpi-ico{background:var(--green-bg)}
+    .kpi-val{font-size:30px;font-weight:800;line-height:1;margin-bottom:3px}
+    .kpi.knavy .kpi-val{color:var(--navy)}.kpi.kteal .kpi-val{color:var(--teal)}
+    .kpi.kamber .kpi-val{color:var(--amber)}.kpi.kred .kpi-val{color:var(--red)}
+    .kpi.kgreen .kpi-val{color:var(--green)}
+    .kpi-lbl{font-size:11.5px;color:var(--muted);font-weight:500}
+    .kpi-sub{font-size:10.5px;color:var(--muted);margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
+    .alrt{border-radius:var(--r);padding:14px 18px;display:flex;align-items:center;gap:14px}
+    .alrt.ahi{background:var(--red-bg);border:1px solid #fca5a5}
+    .alrt.amed{background:var(--amber-bg);border:1px solid #fcd34d}
+    .alrt.ainf{background:var(--blue-bg);border:1px solid #93c5fd}
+    .alrt-ico{font-size:26px}
+    .alrt-v{font-size:22px;font-weight:800}
+    .alrt.ahi .alrt-v{color:var(--red)}.alrt.amed .alrt-v{color:var(--amber)}.alrt.ainf .alrt-v{color:var(--blue)}
+    .alrt-l{font-size:11px;color:var(--muted);margin-top:2px}
+    .rb{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+    .rb.rlow{background:var(--green-bg);color:var(--green)}
+    .rb.rmed{background:var(--amber-bg);color:var(--amber)}
+    .rb.rhi{background:var(--red-bg);color:var(--red)}
+    .hmap{width:100%;border-collapse:separate;border-spacing:4px;font-size:12px}
+    .hmap th{padding:7px 10px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    .hmap td{padding:10px 8px;text-align:center;border-radius:6px;font-weight:700;font-size:13px;min-width:56px;cursor:default;transition:transform .15s}
+    .hmap td:hover{transform:scale(1.06)}
+    .hmap .rl{text-align:left;font-size:11.5px;font-weight:600;color:var(--muted);padding-left:0}
+    .pt{width:100%;border-collapse:collapse;font-size:12.5px}
+    .pt th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+    .pt th:hover{color:var(--text)}
+    .si{margin-left:3px;opacity:.4}.si.on{opacity:1;color:var(--teal)}
+    .pt td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .pt tr:last-child td{border-bottom:none}
+    .pt tbody tr{cursor:pointer;transition:background .12s}
+    .pt tbody tr:hover{background:#f8fafc}
+    .pt tbody tr.sel{background:#eff6ff}
+    .pd-hdr{background:var(--navy);color:#fff;padding:18px 22px;display:flex;align-items:center;gap:14px}
+    .pd-av{width:48px;height:48px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0}
+    .pd-body{padding:18px 22px}
+    .dg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+    .di{background:var(--bg);border-radius:7px;padding:10px}
+    .di .dl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:3px}
+    .di .dv{font-size:15px;font-weight:700}
+    .dv.yes{color:var(--red)}.dv.no{color:var(--green)}
+    .rmtr{background:var(--bg);border-radius:7px;padding:14px;margin-top:2px}
+    .rmtr-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .rmtr-bar{height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden}
+    .rmtr-fill{height:100%;border-radius:5px;transition:width .5s ease}
+    .rf-low{background:var(--green)}.rf-med{background:var(--amber)}.rf-hi{background:var(--red)}
+    .rmtr-sc{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:3px}
+    .srch{position:relative}
+    .srch-in{width:100%;padding:9px 14px 9px 38px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg);color:var(--text);outline:none;transition:border-color .2s}
+    .srch-in:focus{border-color:var(--teal);background:#fff}
+    .srch-ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px}
+    .coh-sel{display:flex;gap:10px;margin-bottom:18px;align-items:flex-end}
+    .cg{flex:1}.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+    .csel{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;background:#fff;color:var(--text);cursor:pointer;outline:none}
+    .csel:focus{border-color:var(--teal)}
+    .cv-sep{display:flex;align-items:center;font-size:22px;color:var(--muted);padding-bottom:4px}
+    .rec{background:linear-gradient(135deg,#1e3a8a 0%,#0d9488 100%);border-radius:var(--r);padding:18px 22px;color:#fff;display:flex;align-items:flex-start;gap:14px}
+    .rec-ic{font-size:26px;flex-shrink:0;margin-top:1px}
+    .rec-t{font-size:12.5px;font-weight:700;margin-bottom:5px}
+    .rec-txt{font-size:11.5px;line-height:1.65;opacity:.9}
+    .sl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+    .sl::after{content:"";flex:1;height:1px;background:var(--border)}
+    .pagi{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted)}
+    .pagi-btns{display:flex;gap:3px}
+    .pb{width:28px;height:28px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11.5px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .pb:hover{background:var(--bg)}.pb.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+    .pb:disabled{opacity:.35;cursor:not-allowed}
+    .tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:600}
+    .tM{background:#dbeafe;color:#1d4ed8}.tF{background:#fce7f3;color:#be185d}.tO{background:#f3e8ff;color:#7e22ce}
+    .empty{text-align:center;padding:44px 20px;color:var(--muted)}
+    .empty .ei{font-size:44px;margin-bottom:10px}
+    .empty p{font-size:13.5px}
+    .leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+    .ld{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+    @media(max-width:1280px){.g5{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="brand">
+    <div class="brand-ico">&#127973;</div>
+    <div><h1>Patient Dashboard</h1><span>Clinical Intelligence Platform</span></div>
+  </div>
+  <nav class="nav">
+    <button class="nbtn on" data-p="1">&#128202; Overview</button>
+    <button class="nbtn" data-p="2">&#128300; Risk Insights</button>
+    <button class="nbtn" data-p="3">&#128101; Cohort Compare</button>
+    <button class="nbtn" data-p="4">&#128269; Patient Explorer</button>
+  </nav>
+  <div class="hdr-pills">
+    <div class="pill"><b id="h-total">179</b> Patients</div>
+    <div class="pill" id="h-fpill" style="display:none">Showing: <b id="h-fcount">0</b></div>
+  </div>
+</header>
+
+<div class="body">
+<aside class="sb">
+  <div class="sb-hdr">
+    <span class="sb-title">&#127917; Filters</span>
+    <button class="btn-reset" id="btn-reset">Reset All</button>
+  </div>
+  <div class="fg"><div class="fl">&#127874; Age Group</div><div class="fo" id="f-age"></div></div>
+  <div class="fg"><div class="fl">&#9893; Gender</div><div class="fo" id="f-gender"></div></div>
+  <div class="fg"><div class="fl">&#129656; Blood Type</div><div class="fo" id="f-blood"></div></div>
+  <div class="fg"><div class="fl">&#9878; BMI Class</div><div class="fo" id="f-bmic"></div></div>
+  <div class="fg"><div class="fl">&#128137; Diabetes</div><div class="fo" id="f-diab"></div></div>
+  <div class="fg"><div class="fl">&#128684; Smoking</div><div class="fo" id="f-smok"></div></div>
+  <div class="fg">
+    <div class="fl">&#9888; Risk Sensitivity</div>
+    <div class="slid-wrap">
+      <div class="slid-val">High Risk &#8805; <span id="risk-thr-val">4</span></div>
+      <input type="range" class="slid" id="risk-thr" min="2" max="6" value="4">
+      <div class="slid-row"><span>Sensitive(2)</span><span>Strict(6)</span></div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+<div id="p1" class="page on">
+  <div class="ph"><h2>&#128202; Executive Overview</h2><p>Population summary, key health indicators, and risk distribution</p></div>
+  <div class="g5 gap" id="kpi-row"></div>
+  <div class="sl">&#9888; Clinical Alerts</div>
+  <div class="g3 gap" id="alrt-row"></div>
+  <div class="gap" id="rec-box"></div>
+  <div class="sl">&#128101; Demographics</div>
+  <div class="g2 gap">
+    <div class="card"><div class="card-h"><div><div class="card-t">&#128202; Age Group Distribution</div><div class="card-s">Patients by age cohort</div></div></div><div class="card-b"><div class="cc" style="height:210px"><canvas id="c-age"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div><div class="card-t">&#9893; Gender Distribution</div><div class="card-s">Patient gender breakdown</div></div></div><div class="card-b"><div class="cc" style="height:210px"><canvas id="c-gender"></canvas></div></div></div>
+  </div>
+  <div class="sl">&#129658; Clinical Indicators</div>
+  <div class="g3 gap">
+    <div class="card"><div class="card-h"><div class="card-t">&#129656; Blood Type</div></div><div class="card-b"><div class="cc" style="height:190px"><canvas id="c-blood"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div class="card-t">&#128137; Diabetes Status</div></div><div class="card-b"><div class="cc" style="height:190px"><canvas id="c-diab"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div class="card-t">&#128684; Smoking Status</div></div><div class="card-b"><div class="cc" style="height:190px"><canvas id="c-smok"></canvas></div></div></div>
+  </div>
+  <div class="sl">&#9878; Body Metrics &amp; Risk</div>
+  <div class="g2">
+    <div class="card"><div class="card-h"><div><div class="card-t">&#9878; BMI Class Distribution</div><div class="card-s">Weight categories</div></div></div><div class="card-b"><div class="cc" style="height:210px"><canvas id="c-bmic"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div><div class="card-t">&#127919; Risk Score Histogram</div><div class="card-s">Composite clinical risk (0-7)</div></div></div><div class="card-b"><div class="cc" style="height:210px"><canvas id="c-rhist"></canvas></div></div></div>
+  </div>
+</div>
+
+<div id="p2" class="page">
+  <div class="ph"><h2>&#128300; Risk &amp; Clinical Insights</h2><p>Deep analysis, correlations, and patient segmentation</p></div>
+  <div class="sl">&#128205; BMI vs Temperature Scatter</div>
+  <div class="card gap">
+    <div class="card-h">
+      <div><div class="card-t">BMI vs Body Temperature &mdash; colored by Diabetes status</div><div class="card-s">Each dot = one patient</div></div>
+      <div class="leg" id="scatter-leg"></div>
+    </div>
+    <div class="card-b"><div class="cc" style="height:330px"><canvas id="c-scat"></canvas></div></div>
+  </div>
+  <div class="sl">&#128200; Heatmap &amp; Risk Segments</div>
+  <div class="g2 gap">
+    <div class="card"><div class="card-h"><div><div class="card-t">&#128205; Age Group x BMI Class Heatmap</div><div class="card-s">Patient count at each intersection</div></div></div><div class="card-b" id="hmap-cont"></div></div>
+    <div class="card"><div class="card-h"><div><div class="card-t">&#127991; Top High-Risk Segments</div><div class="card-s">High-risk patient groups</div></div></div><div class="card-b"><div class="cc" style="height:270px"><canvas id="c-rseg"></canvas></div></div></div>
+  </div>
+  <div class="sl">&#128202; Risk Factor Analysis</div>
+  <div class="g2">
+    <div class="card"><div class="card-h"><div class="card-t">Risk Distribution by Gender</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-rgend"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div class="card-t">Risk Distribution by Age Group</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-rage"></canvas></div></div></div>
+  </div>
+</div>
+
+<div id="p3" class="page">
+  <div class="ph"><h2>&#128101; Cohort Comparison</h2><p>Compare two patient cohorts across all clinical metrics</p></div>
+  <div class="coh-sel">
+    <div class="cg"><div class="cl" style="color:#1d4ed8">&#128309; Cohort A - Filter by</div><select class="csel" id="ca-field"><option>Gender</option><option>Age Group</option><option>BMI Class</option><option>Diabetes</option><option>Smoking</option><option>Blood Type</option></select></div>
+    <div class="cg"><div class="cl" style="color:#1d4ed8">= Value</div><select class="csel" id="ca-val"></select></div>
+    <div class="cv-sep">vs</div>
+    <div class="cg"><div class="cl" style="color:#be185d">&#128308; Cohort B - Filter by</div><select class="csel" id="cb-field"><option>Gender</option><option>Age Group</option><option>BMI Class</option><option>Diabetes</option><option>Smoking</option><option>Blood Type</option></select></div>
+    <div class="cg"><div class="cl" style="color:#be185d">= Value</div><select class="csel" id="cb-val"></select></div>
+  </div>
+  <div class="sl">&#128203; Cohort Summary</div>
+  <div class="g4 gap" id="coh-kpis"></div>
+  <div class="sl">&#128202; Metric Comparison</div>
+  <div class="g2 gap">
+    <div class="card"><div class="card-h"><div class="card-t">Risk Score Distribution</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-crisk"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div class="card-t">BMI Class Breakdown</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-cbmi"></canvas></div></div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-h"><div class="card-t">Average Vitals Comparison</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-cvit"></canvas></div></div></div>
+    <div class="card"><div class="card-h"><div class="card-t">Diabetes &amp; Smoking Rates</div></div><div class="card-b"><div class="cc" style="height:240px"><canvas id="c-ccond"></canvas></div></div></div>
+  </div>
+</div>
+
+<div id="p4" class="page">
+  <div class="ph"><h2>&#128269; Patient Explorer</h2><p>Search, sort, and drill into individual patient records</p></div>
+  <div class="g21">
+    <div>
+      <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center">
+        <div class="srch" style="flex:1"><span class="srch-ic">&#128269;</span><input type="text" class="srch-in" id="pt-search" placeholder="Search ID, age, gender, blood type, BMI..."></div>
+        <span style="font-size:11.5px;color:var(--muted);white-space:nowrap" id="tbl-cnt"></span>
+      </div>
+      <div class="card" style="overflow:hidden">
+        <div style="overflow-x:auto">
+          <table class="pt">
+            <thead><tr>
+              <th data-s="id">ID <span class="si on" id="si-id">&#8597;</span></th>
+              <th data-s="age">Age <span class="si" id="si-age">&#8597;</span></th>
+              <th data-s="gender">Gender <span class="si" id="si-gender">&#8597;</span></th>
+              <th data-s="bloodType">Blood <span class="si" id="si-bloodType">&#8597;</span></th>
+              <th data-s="bmi">BMI <span class="si" id="si-bmi">&#8597;</span></th>
+              <th data-s="bmiClass">Class <span class="si" id="si-bmiClass">&#8597;</span></th>
+              <th data-s="temp">Temp F <span class="si" id="si-temp">&#8597;</span></th>
+              <th data-s="diabetes">Diabetes <span class="si" id="si-diabetes">&#8597;</span></th>
+              <th data-s="smoking">Smoking <span class="si" id="si-smoking">&#8597;</span></th>
+              <th data-s="riskScore">Risk <span class="si" id="si-riskScore">&#8597;</span></th>
+            </tr></thead>
+            <tbody id="pt-body"></tbody>
+          </table>
+        </div>
+        <div class="pagi" id="pt-pagi"></div>
+      </div>
+    </div>
+    <div>
+      <div class="sl">&#128100; Patient Detail</div>
+      <div id="pd-cont">
+        <div class="card"><div class="empty"><div class="ei">&#128100;</div><p>Select a patient to view their profile</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<script>
+const CSV=`Patient ID,Age,Gender,Height,Weight,Blood Type,BMI,Temperature,Diabetes,Smoking
+1,18,Female,161.7779242,72.35494708,O,27.64583507,98.62136064,No,Undisclosed
+2,27,Male,152.0691568,47.6309415,B,20.597138551966715,98.71497675,No,No
+3,32,Female,182.5376635,55.74108279,A,16.72901714,98.26029302,Yes,No
+6,32,Undisclosed,151.4912942,68.64780494,B,29.91240299,99.66837273,Undisclosed,Yes
+7,21,Undisclosed,172.9497041,48.10274387,AB,16.08163509,97.71546872,No,No
+8,28,Male,186.4894021,52.38975193,AB,15.06392098,98.22778787,No,No
+9,21,Male,155.0396784,42.95870258,B,17.871682436474597,98.80805323,No,No
+10,32,Undisclosed,170.8363146,50.78324973,B,17.40043481,98.57016848,Undisclosed,No
+11,28,Female,152.9739277,73.57281402,B,31.4399996,98.37184285,No,Yes
+12,34,Female,182.4163021,76.37105033,AB,22.95099236,98.11827412,No,No
+13,29,Male,168.845992,48.53356461,AB,17.023963435989717,98.5159267,Undisclosed,Yes
+14,34,Male,164.33454388891982,60.8822282,B,22.54409527,98.96356906,Yes,Undisclosed
+15,33,Male,184.7189883,93.66694446,Not Available,27.45132241,98.41821332,Yes,Yes
+17,24,Male,162.7270126,86.22872653,B,32.56361934,98.05782165,Undisclosed,No
+18,27,Undisclosed,176.6947412,56.24355906,O,18.01463828,98.62136064,No,No
+19,31,Female,158.7901598,46.82984945,AB,18.57272337,98.78470852,Undisclosed,No
+20,31,Male,166.4899291,49.9555691,B,18.02220703,98.80974999,No,No
+21,30,Male,180.9137663,72.1936586,O,22.05747630953876,98.91082536,No,No
+22,22,Female,189.0821358,83.53660218,AB,23.36553922,99.38581773,No,Yes
+23,29,Female,179.9090408,90.67943559,AB,28.01578735,98.78226927,No,Yes
+24,18,Male,196.73084048144688,52.52155954,AB,13.57040217,98.21508993,No,No
+25,27,Female,187.4116232,81.21946973,AB,23.12422068,97.7389392,No,No
+26,28,Female,183.5190035,61.08010039,B,18.13583924,98.62377107,No,Undisclosed
+27,29,Male,173.0188013,44.03205694,O,14.70897386,98.85595801,No,Undisclosed
+28,24,Male,187.777839,40.48552528,AB,11.4818298,98.88341203,No,Yes
+29,27,Undisclosed,160.19258951814427,82.82678565,Not Available,32.27646502,98.62136064,No,Undisclosed
+30,34,Male,192.4991191,86.9077444,AB,23.45313944,99.4696344,No,No
+31,30,Undisclosed,189.7717927,75.28151043,B,20.90378854779412,97.96900723,No,No
+32,28,Male,188.806048288882,70.2628757,O,19.71033998,99.08680137,No,No
+33,25,Male,159.588589,89.21281563,B,35.02866425,98.27284963,No,Yes
+35,33,Male,160.4637062,55.75522612,A,21.65369144,99.16146102,Yes,Yes
+36,21,Male,183.4762869,61.46999461,O,18.26010583,99.34692041,No,No
+37,22,Female,197.6528102,53.86241286,Not Available,13.78731879,99.00744646,No,No
+38,27,Male,175.8868882,80.49389011,O,26.019322595916467,99.30496403,No,No
+39,18,Undisclosed,190.8127597,49.47284654,B,13.58789161,98.62136064,No,Undisclosed
+41,20,Female,197.3236754,65.35714002,O,16.7855141,98.44094474,No,No
+42,18,Male,161.0835494,66.57149245,AB,25.65582073,98.44770992,No,No
+43,27,Female,156.960231,52.14020878,AB,21.163793114319237,99.8457615,No,No
+44,27,Female,178.4808907,97.54386083,B,30.62079712,98.66287666,No,No
+45,19,Male,165.0404209,58.81445637,B,21.59252555,98.78848507,No,Undisclosed
+46,34,Male,181.0108364,72.08875303,AB,22.00180762,98.13751521,No,Yes
+47,24,Female,156.0252575,96.54593563,AB,39.65922101,98.36751126,No,Yes
+48,21,Male,171.6661992,89.46924316,O,30.3601687,98.73027869,No,Undisclosed
+49,18,Male,174.0842849,53.57685146,O,17.67901451,99.13182049,No,No
+50,27,Female,153.7914788,79.64841737112162,A,33.67538773,97.92583936,No,No
+51,33,Undisclosed,164.9258988,93.61162325,Not Available,34.41533942,98.33428721,No,No
+52,23,Male,174.3384376,45.42133303,AB,14.94423115,98.67202373,No,No
+53,21,Female,188.7139631,44.33034512,Not Available,12.44781262,99.2653967,No,Yes
+54,27,Female,159.8637912,83.89577663,O,32.82765664,98.28472954,No,No
+55,34,Male,174.207898,67.65559167846521,B,22.2929743,98.91982583,Yes,Yes
+57,31,Female,195.22168083325292,56.62919531,AB,14.85881909,98.62136064,Undisclosed,No
+60,30,Male,182.2416921,48.6090451,A,14.635973395411694,98.27222072,Undisclosed,No
+61,26,Female,178.3483712,89.51107845,B,28.14093317,99.08123903,No,No
+62,25,Male,181.2575921,67.36325525,B,20.50362514,98.62136064,No,Undisclosed
+63,32,Male,169.1392516534496,73.63687626,B,25.73988176,98.0442849,No,No
+64,24,Female,165.7943354,66.14719098076596,B,24.06423332,98.62136064,Undisclosed,No
+65,19,Male,177.7456443,70.40918417,B,22.2859616,98.23796779,No,No
+66,31,Female,152.2972027,80.75332866,B,34.81581613,98.2281284,Undisclosed,Yes
+68,27,Female,168.6332371,95.43922912,B,33.56143865,98.62136064,No,No
+69,30,Male,196.7291476,92.80548284,A,23.97928417,99.07303389,No,Undisclosed
+70,34,Female,190.17375368345694,92.33459511,A,25.53073346,98.62136064,No,Yes
+71,19,Male,194.2729506,72.62138472,A,19.241541116785474,99.21552571,No,Yes
+72,27,Female,196.6250498,54.42084498404062,A,14.07627003,98.74881564,No,No
+73,34,Male,176.8566282,79.52331226476338,O,25.42446243,98.4920839,No,No
+74,19,Male,192.1898405,98.15328832298523,A,26.57320887,99.13270852,No,Yes
+75,27,Male,176.1426414,77.42180343,A,24.95366117,98.08445107,No,Undisclosed
+77,27,Female,153.4286951,64.7776981,AB,27.51771247,98.36393201,No,No
+78,23,Female,158.7450441,64.36135459,Not Available,25.54023119,99.0567517,No,No
+79,27,Female,187.8525056,82.352369,B,23.33684344,98.30092095,No,No
+81,31,Female,170.2647387,70.98812529481896,AB,24.4870391,98.28371154,No,No
+82,31,Male,167.4407949,55.53840301,AB,19.80937774,98.32347254,No,Yes
+83,24,Female,162.0443478,80.63852997,AB,30.70964723,98.99646166,Yes,Yes
+84,21,Male,171.1466886,69.05673449,AB,23.57594104,98.31607009,Yes,No
+85,23,Male,196.305318,80.82976007,O,20.97525067,97.92048988,No,Yes
+86,25,Female,153.9109521,48.37389188,A,20.42076372,99.7133985,No,No
+87,34,Female,150.9426324,90.58021387,O,39.75662438,97.56323403,Yes,No
+88,31,Male,191.0628477,65.78843617,A,18.021754542164665,97.44644476,No,No
+89,28,Male,176.4829106,90.50948228,B,29.05954202,98.64142703,No,No
+90,24,Undisclosed,193.12035619557255,83.70195938,B,22.44292804,98.71590044,No,No
+91,27,Female,182.84724,55.67487956,B,16.65261601,98.8651479,No,No
+94,34,Female,198.2763967,40.17547508,O,10.2192491,98.65558842,No,No
+95,29,Female,178.5658207,89.36248372,B,28.0258351,98.31078764,No,No
+96,30,Male,171.0614213,46.59620329,A,15.9237877,99.53310263,No,No
+97,28,Male,196.5481034,78.53646189,O,20.32982393,98.62136064,No,No
+98,29,Female,191.72425288091517,82.66237366,AB,22.48815178,98.62136064,Undisclosed,No
+99,31,Female,185.047197,76.56039291,B,22.35831814,98.61712914,No,No
+100,25,Female,198.5888139,51.36806732,B,13.02517785587589,98.5406475,No,No
+102,18,Male,184.7685663960476,46.7090142,A,13.6818405,99.25284142,No,No
+104,26,Female,183.4841155,50.91433145,AB,15.12317926,99.18993599,No,No
+105,18,Undisclosed,150.1934193,99.2825435871122,O,44.01199815,98.01682387,No,No
+106,25,Undisclosed,167.3779652,40.757061196202606,B,14.54810054,98.62630389,No,No
+107,21,Female,198.4219542,96.43616033,O,24.49404239,98.62136064,No,No
+108,21,Male,195.1318254,70.49218513,AB,18.51333921,98.86188022,No,No
+109,29,Female,177.3110776,62.98884186,B,20.03511708,98.36468323,No,No
+110,23,Female,150.6125147,55.183009182972015,Not Available,24.32670338,99.48814338,Undisclosed,No
+111,33,Female,157.6804746,78.93654503,A,31.74843169698132,98.61814264,No,Yes
+112,32,Female,185.6335476,83.70551878607053,AB,24.29076338,99.18574279,No,No
+114,27,Female,187.0495081,55.49601913,A,15.86166197,98.62136064,No,No
+115,31,Male,177.6696499,44.03860245,O,13.9510545,98.41132657,No,Undisclosed
+116,28,Male,180.0291423,66.60141168,AB,20.54933678,98.94309284,No,Undisclosed
+117,27,Male,171.9704501,72.79703819,A,24.6153522,98.49776395,No,No
+118,21,Male,159.6334752,89.87783791,AB,35.26993668,98.59204714,Yes,No
+119,22,Female,195.7503622,92.15931511,Not Available,24.05105271,98.64608311,Undisclosed,No
+120,27,Male,168.4319201,57.88812091,O,20.405190476477813,98.62136064,Undisclosed,No
+121,27,Female,187.5463343,73.10285818,A,20.78342877,98.62136064,Undisclosed,Undisclosed
+122,31,Male,186.2673609,88.44502027,A,25.49176248,99.07065876,No,No
+123,29,Female,180.2336464,69.61138482,O,21.42932715,98.73462332,No,No
+124,33,Male,157.5504367,43.65125524,A,17.58561312,99.8775981,No,No
+125,32,Female,161.94401358936327,90.6229606,AB,34.55480521,99.00693366,No,No
+126,31,Male,167.229267,51.49296327,Not Available,18.41294739,98.21277985,No,No
+127,18,Female,159.4848934,63.197546,B,24.84626481,98.68813392,No,Yes
+128,26,Undisclosed,175.1344241,96.20918416,B,31.3670369,98.56959762,No,No
+129,29,Male,193.6754997,71.71157552,O,19.11788715,99.34996351,No,No
+130,25,Female,196.42081,60.51283056,O,15.68456479,98.57321619,No,Undisclosed
+131,31,Male,173.8850517,54.37530827682913,A,17.98362486,99.41945744,No,No
+132,27,Female,151.2889139,54.36995512,Not Available,23.75443823,98.62136064,No,Yes
+133,28,Male,190.7974808,90.92940408,AB,24.97808117,99.01691145,No,No
+134,27,Male,155.5548612,70.45571086622775,A,29.11716086,99.05145192,Undisclosed,Yes
+135,28,Female,174.5807714,76.14503792,Not Available,24.98324177,98.66807607,Undisclosed,No
+136,32,Male,182.3946603,96.42933756621177,AB,28.98577678,98.48677498,Undisclosed,No
+137,18,Undisclosed,181.2979127,83.5526789,B,25.419954618023283,98.07315595,No,No
+138,33,Male,162.2691918,95.38400433,Not Available,36.22458379,98.90499176,No,No
+139,25,Female,165.5061499,69.17509279,B,25.25349422,98.70810574,No,No
+140,29,Male,196.3021554,65.55526251,AB,17.0120803179711,98.2435201,No,No
+141,26,Female,155.5639158,75.59167823,A,31.23606041,97.73547616,Undisclosed,No
+142,27,Male,193.2229502,78.34915844847126,Not Available,20.9853839,97.51021997,No,No
+143,24,Male,162.9583911,48.67820639,O,18.33078701,98.61700487,No,No
+144,26,Male,195.0889748,44.66961791,O,11.7367211,98.10556431,No,No
+145,28,Male,193.37050406779454,53.15067044,AB,14.21439201,99.29451447,No,No
+146,22,Female,183.178776,44.02873664,B,13.12157353,98.20617196,No,No
+147,32,Female,160.3323121,94.23145022,Not Available,36.65673365,98.92571674,No,No
+148,19,Female,168.0380092,71.69811989275743,B,25.3917546,98.46598052,No,No
+149,19,Female,154.1885562,95.99471397,A,40.37783561,98.29359509,No,No
+150,32,Female,191.9654875,62.32834725,B,16.91372631,97.9055364,No,No
+151,30,Male,172.8890495,61.9593031,AB,20.72867541,98.54581986,No,No
+152,18,Female,179.7487604,83.6932982,A,25.903525426756264,99.15642461,No,No
+154,27,Male,171.0909301,47.91551526,B,16.36900149,98.62136064,No,No
+155,33,Male,197.2876365,65.25069565171265,Not Available,16.76429931,98.06184773,No,No
+156,21,Female,172.8634457,54.94438208,O,18.38725768,99.34752654,No,No
+157,23,Female,157.3234884,80.64988663,O,32.58491752,98.69927374,No,Undisclosed
+158,19,Male,187.2593633,80.0603492,O,22.831287097599166,98.43694217,No,No
+159,34,Male,168.4836913,62.74154083,B,22.10240039,98.73765855,No,No
+160,19,Female,196.9342871,73.04105382,AB,18.83321048,98.96044451,No,No
+161,31,Female,152.8178062,78.69776896,B,33.69880488,98.86923358,Undisclosed,Undisclosed
+162,29,Undisclosed,167.3071539,48.76934932,B,17.42279949,98.96341234,No,Undisclosed
+163,20,Male,156.737268,43.42027196,Not Available,17.67453489,98.88050326,No,Yes
+164,33,Male,155.373104,54.4116947,B,22.53930751,98.62136064,No,No
+165,27,Female,174.6567584,42.51330584,AB,13.93651178,97.99999885,No,No
+166,18,Female,156.7050133,52.44583133,AB,21.35724318,98.65460957,No,No
+167,25,Male,174.9735379,50.6384885,AB,16.54001838,98.39380047,No,No
+168,32,Female,187.0623254,84.0374822,Not Available,24.01598339,98.27214278,No,Yes
+169,20,Undisclosed,186.4931388,77.53614253,O,22.29351115,99.03719977,No,No
+170,18,Female,195.4104364,69.06705073,B,18.08736914,98.86513373,Undisclosed,No
+171,34,Male,181.3182251,46.05975311,O,14.01001781,97.31492892,No,No
+172,31,Female,159.8527158,93.34007715,O,36.52818702,98.62136064,No,No
+173,27,Male,163.126096,49.3946454,O,18.56235127,98.94034759,No,No
+174,19,Female,173.824683,99.7014278,Not Available,32.99730611,98.14522644,No,Undisclosed
+175,34,Female,153.9997485,76.25631022,AB,32.15405604,98.55008351,Yes,Yes
+176,24,Female,171.5329679,66.79538789,A,22.70132845,98.43654827,No,No
+177,21,Female,160.4707551,54.31555209,B,21.09271117,97.58206045,No,Undisclosed
+178,28,Male,163.3320924,90.03166955,O,33.74832729920736,97.83198436,No,Yes
+179,25,Male,157.0896911,58.48049656,AB,23.69821744,98.26296251,No,No
+180,20,Male,152.7126155,60.66573212,AB,26.01318996,98.99288092,No,No
+181,18,Female,198.1957763,41.1084187,A,10.46506622,98.62136064,No,No
+182,30,Female,191.9851958,64.42796454,O,17.4798994,98.62136064,No,No
+183,24,Female,164.1458266,84.62753843,Not Available,31.40884875,98.72463889,No,No
+184,34,Female,153.1509476,86.18751799,A,36.74557078,98.36525686,No,No
+185,21,Undisclosed,177.9723197,88.57948016,A,27.96586166,98.26381609,No,No
+186,18,Male,163.5969369,71.42492303,Not Available,26.686980924986663,98.07203649,No,No
+187,24,Male,161.1215898,47.1056907,O,18.14537298,97.90606373,Undisclosed,No
+188,30,Female,168.9518217,76.08112169,Not Available,26.653309919338337,99.17541857,No,Yes
+189,18,Undisclosed,179.5241948,99.19126475,Not Available,30.777082791047253,98.95324007,Yes,No
+190,32,Male,185.4799467,93.69404686,B,27.23441637,98.37724128,No,No
+191,32,Female,160.2242022,88.02336069,A,34.28796499,98.88261553,No,No
+192,31,Male,177.1901869,75.58199922,B,24.07348927,98.29793669,No,No
+193,23,Male,176.693045,70.58009696,B,22.60702114,98.62136064,No,No
+194,29,Male,179.7270284,56.81046214,AB,17.58739569,99.12556935,No,No
+197,27,Male,162.7056587,59.35658084,AB,22.42144309,98.62136064,No,No
+200,33,Male,163.98514,52.39184759,O,19.48295037,98.54085241,No,Yes
+`;
+
+
+function parseCSV(csv){
+  const lines=csv.trim().split("\n");
+  const hdr=lines[0].split(",").map(h=>h.trim());
+  return lines.slice(1).map(line=>{
+    const v=line.split(",");
+    const o={};
+    hdr.forEach((h,i)=>{o[h]=(v[i]||"").trim();});
+    return o;
+  });
+}
+
+// Maximum possible composite risk score (Obese+Diabetic+Smoker+Fever = 2+2+1+1)
+const MAX_RISK_SCORE=6;
+// Fever threshold: 99.5°F (37.5°C) used as a conservative flag for elevated temperature.
+// Note: some clinical guidelines use 100.4°F (38°C); this lower threshold is intentional
+// for early-warning detection in this dashboard.
+const FEVER_THRESHOLD=99.5;
+// Risk scoring weights:
+//   Overweight BMI (25–29.9): +1
+//   Obese BMI (≥30):          +2
+//   Diabetes confirmed:        +2
+//   Smoking confirmed:         +1
+//   Fever detected:            +1
+//   Max total score = 7 (Obese + Diabetic + Smoker + Fever)
+const REAL_MAX_RISK=7;
+
+function enrich(p){
+  const age=+p["Age"],bmi=+p["BMI"],temp=+p["Temperature"];
+  const ageGroup=age<=24?"18-24":age<=29?"25-29":"30-34";
+  const bmiClass=bmi<18.5?"Underweight":bmi<25?"Normal":bmi<30?"Overweight":"Obese";
+  const fever=temp>=FEVER_THRESHOLD;
+  let score=0;
+  if(bmi>=25&&bmi<30) score+=1;   // Overweight
+  if(bmi>=30)         score+=2;   // Obese
+  if(p["Diabetes"]==="Yes") score+=2;
+  if(p["Smoking"]==="Yes")  score+=1;
+  if(fever)                 score+=1;
+  const riskLevel=score<=1?"Low":score<=3?"Medium":"High";
+  return {
+    id:+p["Patient ID"],age,gender:p["Gender"],height:+p["Height"],
+    weight:+p["Weight"],bloodType:p["Blood Type"],bmi,temp,
+    diabetes:p["Diabetes"],smoking:p["Smoking"],
+    ageGroup,bmiClass,fever,riskScore:score,riskLevel
+  };
+}
+
+const ALL=parseCSV(CSV).map(enrich);
+
+const F={age:new Set(),gender:new Set(),blood:new Set(),bmic:new Set(),diab:new Set(),smok:new Set(),riskThr:4};
+
+function passes(p){
+  if(F.age.size&&!F.age.has(p.ageGroup)) return false;
+  if(F.gender.size&&!F.gender.has(p.gender)) return false;
+  if(F.blood.size&&!F.blood.has(p.bloodType)) return false;
+  if(F.bmic.size&&!F.bmic.has(p.bmiClass)) return false;
+  if(F.diab.size&&!F.diab.has(p.diabetes)) return false;
+  if(F.smok.size&&!F.smok.has(p.smoking)) return false;
+  return true;
+}
+function filtered(){return ALL.filter(passes);}
+
+const CH={};
+function mkChart(id,cfg){
+  if(CH[id]) CH[id].destroy();
+  const el=document.getElementById(id);
+  if(!el) return;
+  CH[id]=new Chart(el,cfg);
+}
+
+Chart.defaults.font.family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.color="#64748b";
+Chart.defaults.plugins.tooltip.backgroundColor="rgba(15,23,42,.92)";
+Chart.defaults.plugins.tooltip.padding=10;
+Chart.defaults.plugins.tooltip.cornerRadius=8;
+Chart.defaults.plugins.tooltip.titleColor="#fff";
+Chart.defaults.plugins.tooltip.bodyColor="rgba(255,255,255,.85)";
+
+function cnt(arr,key){const m={};arr.forEach(p=>{const v=p[key]||"Unknown";m[v]=(m[v]||0)+1;});return m;}
+function avg(arr,key){const valid=arr.filter(p=>typeof p[key]==="number"&&!isNaN(p[key]));if(!valid.length)return 0;return valid.reduce((s,p)=>s+p[key],0)/valid.length;}
+function pct(n,total){return total?Math.round(n/total*100):0;}
+
+function buildFilters(){
+  const defs=[
+    {id:"f-age",key:"ageGroup",vals:["18-24","25-29","30-34"]},
+    {id:"f-gender",key:"gender",vals:[...new Set(ALL.map(p=>p.gender))].sort()},
+    {id:"f-blood",key:"bloodType",vals:[...new Set(ALL.map(p=>p.bloodType))].sort()},
+    {id:"f-bmic",key:"bmiClass",vals:["Underweight","Normal","Overweight","Obese"]},
+    {id:"f-diab",key:"diabetes",vals:[...new Set(ALL.map(p=>p.diabetes))].sort()},
+    {id:"f-smok",key:"smoking",vals:[...new Set(ALL.map(p=>p.smoking))].sort()}
+  ];
+  const fkeys=["age","gender","blood","bmic","diab","smok"];
+  defs.forEach((d,i)=>{
+    const el=document.getElementById(d.id);
+    el.innerHTML=d.vals.map(v=>{
+      const n=ALL.filter(p=>p[d.key]===v).length;
+      return `<label class="fcheck"><input type="checkbox" data-fkey="${fkeys[i]}" value="${v}"><span>${v}</span><span class="fcnt">${n}</span></label>`;
+    }).join("");
+  });
+}
+
+function updateFilterCounts(){
+  const keyMap={age:"ageGroup",gender:"gender",blood:"bloodType",bmic:"bmiClass",diab:"diabetes",smok:"smoking"};
+  document.querySelectorAll(".fcheck input").forEach(cb=>{
+    const fk=cb.dataset.fkey,val=cb.value,k=keyMap[fk];
+    const n=ALL.filter(p=>{
+      let ok=true;
+      Object.entries(keyMap).forEach(([f,km])=>{if(f===fk)return;if(F[f].size&&!F[f].has(p[km]))ok=false;});
+      return ok&&p[k]===val;
+    }).length;
+    const ce=cb.parentElement.querySelector(".fcnt");
+    if(ce) ce.textContent=n;
+  });
+}
+
+// ---- PAGE 1 ----
+function renderP1(pts){
+  const n=pts.length;
+  const nDiab=pts.filter(p=>p.diabetes==="Yes").length;
+  const nSmok=pts.filter(p=>p.smoking==="Yes").length;
+  const nObese=pts.filter(p=>p.bmiClass==="Obese").length;
+  const nFever=pts.filter(p=>p.fever).length;
+  const nHigh=pts.filter(p=>p.riskScore>=F.riskThr).length;
+  const nFD=pts.filter(p=>p.fever&&p.diabetes==="Yes").length;
+  const nOS=pts.filter(p=>p.bmiClass==="Obese"&&p.smoking==="Yes").length;
+
+  document.getElementById("kpi-row").innerHTML=[
+    {c:"knavy",i:"&#128101;",v:n,l:"Total Patients",s:"Active records"},
+    {c:"kred",i:"&#128137;",v:pct(nDiab,n)+"%",l:"Diabetes Rate",s:nDiab+" patients"},
+    {c:"kamber",i:"&#128684;",v:pct(nSmok,n)+"%",l:"Smoker Rate",s:nSmok+" patients"},
+    {c:"kteal",i:"&#9878;",v:pct(nObese,n)+"%",l:"Obesity Rate",s:nObese+" patients"},
+    {c:"kgreen",i:"&#127777;",v:pct(nFever,n)+"%",l:"Fever Rate",s:nFever+" patients"}
+  ].map(k=>`<div class="kpi ${k.c}"><div class="kpi-ico">${k.i}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div class="kpi-sub">${k.s}</div></div>`).join("");
+
+  document.getElementById("alrt-row").innerHTML=[
+    {c:"ahi",i:"&#128680;",v:nHigh,l:`High risk patients (score &ge; ${F.riskThr})`},
+    {c:"amed",i:"&#129322;",v:nFD,l:"Patients with Fever + Diabetes"},
+    {c:"ainf",i:"&#128218;",v:nOS,l:"Patients with Obesity + Smoking"}
+  ].map(a=>`<div class="alrt ${a.c}"><div class="alrt-ico">${a.i}</div><div><div class="alrt-v">${a.v}</div><div class="alrt-l">${a.l}</div></div></div>`).join("");
+
+  let recTxt="Population metrics within acceptable range. Continue routine monitoring protocols.";
+  if(nHigh>20) recTxt=`<b>${nHigh} high-risk patients</b> require immediate clinical review. Prioritize diabetic patients with elevated BMI and fever. Schedule urgent follow-up appointments.`;
+  else if(nDiab>12) recTxt=`<b>${nDiab} patients (${pct(nDiab,n)}%)</b> have diabetes. Cross-check with BMI and smoking data to identify those needing intensive care plans.`;
+  else if(nSmok>10) recTxt=`<b>${nSmok} smokers detected.</b> Smoking cessation programs and lung function monitoring recommended for this cohort.`;
+  document.getElementById("rec-box").innerHTML=`<div class="rec"><div class="rec-ic">&#128270;</div><div><div class="rec-t">Clinical Recommendation</div><div class="rec-txt">${recTxt}</div></div></div>`;
+
+  const ageOrder=["18-24","25-29","30-34"];
+  const ageCnt=cnt(pts,"ageGroup");
+  mkChart("c-age",{type:"bar",data:{labels:ageOrder,datasets:[{data:ageOrder.map(a=>ageCnt[a]||0),backgroundColor:["#3b82f6","#0d9488","#8b5cf6"],borderRadius:7,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
+
+  const gK=["Male","Female","Undisclosed"];
+  const gC=cnt(pts,"gender");
+  mkChart("c-gender",{type:"doughnut",data:{labels:gK,datasets:[{data:gK.map(g=>gC[g]||0),backgroundColor:["#3b82f6","#db2777","#8b5cf6"],borderWidth:2,borderColor:"#fff",hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:"65%",plugins:{legend:{position:"right",labels:{boxWidth:12,padding:10,font:{size:11}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} (${pct(c.raw,n)}%)`}}}}});
+
+  const bK=["A","B","AB","O","Not Available"];
+  const bC=cnt(pts,"bloodType");
+  mkChart("c-blood",{type:"doughnut",data:{labels:bK,datasets:[{data:bK.map(b=>bC[b]||0),backgroundColor:["#ef4444","#3b82f6","#8b5cf6","#22c55e","#94a3b8"],borderWidth:2,borderColor:"#fff",hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{boxWidth:10,padding:8,font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}`}}}}});
+
+  const dK=["Yes","No","Undisclosed"];
+  const dC=cnt(pts,"diabetes");
+  mkChart("c-diab",{type:"doughnut",data:{labels:dK,datasets:[{data:dK.map(d=>dC[d]||0),backgroundColor:["#dc2626","#22c55e","#94a3b8"],borderWidth:2,borderColor:"#fff",hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{boxWidth:10,padding:8,font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} (${pct(c.raw,n)}%)`}}}}});
+
+  const sK=["Yes","No","Undisclosed"];
+  const sC=cnt(pts,"smoking");
+  mkChart("c-smok",{type:"doughnut",data:{labels:sK,datasets:[{data:sK.map(s=>sC[s]||0),backgroundColor:["#f59e0b","#22c55e","#94a3b8"],borderWidth:2,borderColor:"#fff",hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{boxWidth:10,padding:8,font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} (${pct(c.raw,n)}%)`}}}}});
+
+  const bmCls=["Underweight","Normal","Overweight","Obese"];
+  const bmC=cnt(pts,"bmiClass");
+  mkChart("c-bmic",{type:"bar",data:{labels:bmCls,datasets:[{data:bmCls.map(c=>bmC[c]||0),backgroundColor:["#3b82f6","#22c55e","#f59e0b","#ef4444"],borderRadius:7,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
+
+  const rB={0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0};
+  pts.forEach(p=>{rB[Math.min(p.riskScore,REAL_MAX_RISK)]++;});
+  const rColors=Object.keys(rB).map(k=>{const v=+k;return v<=1?"#22c55e":v<=3?"#f59e0b":"#ef4444";});
+  mkChart("c-rhist",{type:"bar",data:{labels:Object.keys(rB).map(k=>k===String(REAL_MAX_RISK)?REAL_MAX_RISK+"+":k),datasets:[{data:Object.values(rB),backgroundColor:rColors,borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} patients (score ${c.label})`}}},scales:{x:{title:{display:true,text:"Risk Score",color:"#94a3b8",font:{size:10}},grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f1f5f9"}}}}});
+}
+
+// ---- PAGE 2 ----
+function renderP2(pts){
+  const dG={Yes:[],No:[],Undisclosed:[]};
+  pts.forEach(p=>{const g=dG[p.diabetes]||dG["Undisclosed"];g.push({x:p.bmi,y:p.temp,_p:p});});
+  const sColors={Yes:"rgba(220,38,38,.72)",No:"rgba(13,148,136,.72)",Undisclosed:"rgba(148,163,184,.65)"};
+  mkChart("c-scat",{type:"scatter",data:{datasets:Object.entries(dG).map(([k,d2])=>({label:"Diabetes: "+k,data:d2,backgroundColor:sColors[k],pointRadius:5,pointHoverRadius:8}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:14,font:{size:11}}},tooltip:{callbacks:{label:c=>{const p=c.raw._p;return["ID: "+p.id,"BMI: "+p.bmi.toFixed(1),"Temp: "+p.temp.toFixed(2)+"F","Risk: "+p.riskLevel];}}}},scales:{x:{title:{display:true,text:"BMI"},grid:{color:"#f8fafc"}},y:{title:{display:true,text:"Temperature (F)"},grid:{color:"#f8fafc"}}}}});
+
+  document.getElementById("scatter-leg").innerHTML=Object.entries(sColors).map(([k,c])=>`<div class="li"><div class="ld" style="background:${c}"></div>${k}</div>`).join("");
+
+  const ages=["18-24","25-29","30-34"];
+  const bmcs=["Underweight","Normal","Overweight","Obese"];
+  const hmD={};
+  ages.forEach(a=>{hmD[a]={};bmcs.forEach(b=>{hmD[a][b]=0;});});
+  pts.forEach(p=>{if(hmD[p.ageGroup]) hmD[p.ageGroup][p.bmiClass]=(hmD[p.ageGroup][p.bmiClass]||0)+1;});
+  const allV=Object.values(hmD).flatMap(r=>Object.values(r));
+  const maxV=Math.max(...allV,1);
+  const hmColor=v=>{const t=v/maxV;const r=Math.round(13+t*(220-13)),g=Math.round(148+t*(38-148)),b=Math.round(136+t*(38-136));return `rgba(${r},${g},${b},${.2+t*.75})`;};
+  const hmHtml=`<table class="hmap"><thead><tr><th></th>${bmcs.map(b=>`<th>${b}</th>`).join("")}</tr></thead><tbody>${ages.map(a=>`<tr><td class="rl">${a}</td>${bmcs.map(b=>{const v=hmD[a][b];const bg=v?hmColor(v):"#f8fafc";const color=v>maxV*.5?"#fff":"#0f172a";return `<td style="background:${bg};color:${color}" title="${a}, ${b}: ${v} patients">${v||""}</td>`;}).join("")}</tr>`).join("")}</tbody></table>`;
+  document.getElementById("hmap-cont").innerHTML=hmHtml;
+
+  const segs={};
+  pts.filter(p=>p.riskLevel==="High").forEach(p=>{const k=p.gender+" + "+p.bmiClass;segs[k]=(segs[k]||0)+1;});
+  const segS=Object.entries(segs).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(segS.length){
+    mkChart("c-rseg",{type:"bar",data:{labels:segS.map(e=>e[0]),datasets:[{data:segS.map(e=>e[1]),backgroundColor:"rgba(220,38,38,.75)",borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} high-risk patients`}}},scales:{x:{beginAtZero:true,grid:{color:"#f8fafc"}},y:{grid:{display:false}}}}});
+  }
+
+  const gO=["Male","Female","Undisclosed"];
+  mkChart("c-rgend",{type:"bar",data:{labels:gO,datasets:[
+    {label:"Low",data:gO.map(g=>pts.filter(p=>p.gender===g&&p.riskLevel==="Low").length),backgroundColor:"rgba(22,163,74,.8)",borderRadius:4},
+    {label:"Medium",data:gO.map(g=>pts.filter(p=>p.gender===g&&p.riskLevel==="Medium").length),backgroundColor:"rgba(217,119,6,.8)",borderRadius:4},
+    {label:"High",data:gO.map(g=>pts.filter(p=>p.gender===g&&p.riskLevel==="High").length),backgroundColor:"rgba(220,38,38,.8)",borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:"#f8fafc"}}}}});
+
+  const aO=["18-24","25-29","30-34"];
+  mkChart("c-rage",{type:"bar",data:{labels:aO,datasets:[
+    {label:"Low",data:aO.map(a=>pts.filter(p=>p.ageGroup===a&&p.riskLevel==="Low").length),backgroundColor:"rgba(22,163,74,.8)",borderRadius:4},
+    {label:"Medium",data:aO.map(a=>pts.filter(p=>p.ageGroup===a&&p.riskLevel==="Medium").length),backgroundColor:"rgba(217,119,6,.8)",borderRadius:4},
+    {label:"High",data:aO.map(a=>pts.filter(p=>p.ageGroup===a&&p.riskLevel==="High").length),backgroundColor:"rgba(220,38,38,.8)",borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:"#f8fafc"}}}}});
+}
+
+// ---- PAGE 3 ----
+const FMAP={"Gender":"gender","Age Group":"ageGroup","BMI Class":"bmiClass","Diabetes":"diabetes","Smoking":"smoking","Blood Type":"bloodType"};
+function getCohortVals(field){return [...new Set(ALL.map(p=>p[FMAP[field]]))].sort();}
+function buildCohortDropdowns(){
+  ["ca","cb"].forEach(pfx=>{
+    const fs=document.getElementById(pfx+"-field");
+    const vs=document.getElementById(pfx+"-val");
+    function sync(){vs.innerHTML=getCohortVals(fs.value).map(v=>`<option>${v}</option>`).join("");}
+    sync();
+    fs.addEventListener("change",()=>{sync();renderP3();});
+    vs.addEventListener("change",renderP3);
+  });
+}
+function getCohort(pfx){
+  const f=document.getElementById(pfx+"-field").value;
+  const v=document.getElementById(pfx+"-val").value;
+  return ALL.filter(p=>p[FMAP[f]]===v);
+}
+function cohortKPIHtml(pts,color,label){
+  const n=pts.length;
+  const highN=pts.filter(p=>p.riskLevel==="High").length;
+  return `<div class="kpi" style="border-top:3px solid ${color}"><div class="kpi-val" style="color:${color}">${n}</div><div class="kpi-lbl">${label}</div><div class="kpi-sub">Avg BMI: ${avg(pts,"bmi").toFixed(1)}</div></div><div class="kpi" style="border-top:3px solid ${color}"><div class="kpi-val" style="color:${color}">${pct(highN,n)}%</div><div class="kpi-lbl">High Risk Rate</div><div class="kpi-sub">${highN} high-risk</div></div>`;
+}
+function renderP3(){
+  const cA=getCohort("ca"),cB=getCohort("cb");
+  const lA=document.getElementById("ca-val").value+" ("+document.getElementById("ca-field").value+")";
+  const lB=document.getElementById("cb-val").value+" ("+document.getElementById("cb-field").value+")";
+  document.getElementById("coh-kpis").innerHTML=cohortKPIHtml(cA,"#2563eb","Cohort A: "+lA)+cohortKPIHtml(cB,"#be185d","Cohort B: "+lB);
+  const rLs=["Low","Medium","High"];
+  mkChart("c-crisk",{type:"bar",data:{labels:rLs,datasets:[{label:lA,data:rLs.map(l=>cA.filter(p=>p.riskLevel===l).length),backgroundColor:"rgba(37,99,235,.75)",borderRadius:5},{label:lB,data:rLs.map(l=>cB.filter(p=>p.riskLevel===l).length),backgroundColor:"rgba(190,24,93,.75)",borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f8fafc"}}}}});
+  const bCs=["Underweight","Normal","Overweight","Obese"];
+  mkChart("c-cbmi",{type:"bar",data:{labels:bCs,datasets:[{label:lA,data:bCs.map(c=>cA.filter(p=>p.bmiClass===c).length),backgroundColor:"rgba(37,99,235,.75)",borderRadius:5},{label:lB,data:bCs.map(c=>cB.filter(p=>p.bmiClass===c).length),backgroundColor:"rgba(190,24,93,.75)",borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f8fafc"}}}}});
+  const nA=cA.length,nB=cB.length;
+  mkChart("c-cvit",{type:"bar",data:{labels:["Avg BMI","Avg Age","Avg Temp-97"],datasets:[{label:lA,data:[avg(cA,"bmi").toFixed(1),avg(cA,"age").toFixed(1),(avg(cA,"temp")-97).toFixed(2)],backgroundColor:"rgba(37,99,235,.75)",borderRadius:5},{label:lB,data:[avg(cB,"bmi").toFixed(1),avg(cB,"age").toFixed(1),(avg(cB,"temp")-97).toFixed(2)],backgroundColor:"rgba(190,24,93,.75)",borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:"#f8fafc"}}}}});
+  mkChart("c-ccond",{type:"bar",data:{labels:["% Diabetes","% Smoking","% Fever","% Obese"],datasets:[{label:lA,data:[pct(cA.filter(p=>p.diabetes==="Yes").length,nA),pct(cA.filter(p=>p.smoking==="Yes").length,nA),pct(cA.filter(p=>p.fever).length,nA),pct(cA.filter(p=>p.bmiClass==="Obese").length,nA)],backgroundColor:"rgba(37,99,235,.75)",borderRadius:5},{label:lB,data:[pct(cB.filter(p=>p.diabetes==="Yes").length,nB),pct(cB.filter(p=>p.smoking==="Yes").length,nB),pct(cB.filter(p=>p.fever).length,nB),pct(cB.filter(p=>p.bmiClass==="Obese").length,nB)],backgroundColor:"rgba(190,24,93,.75)",borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"top",labels:{boxWidth:10,padding:10,font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw}%`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:100,grid:{color:"#f8fafc"},ticks:{callback:v=>v+"%"}}}}});
+}
+
+// ---- PAGE 4 ----
+let TBL={sort:"id",dir:1,page:1,ps:15,q:"",sel:null};
+let TBL_DATA=[];
+function gtag(g){return g==="Male"?`<span class="tag tM">M</span>`:g==="Female"?`<span class="tag tF">F</span>`:`<span class="tag tO">?</span>`;}
+function rbadge(l){const c=l==="Low"?"rlow":l==="Medium"?"rmed":"rhi";const d=l==="Low"?"&#128994;":l==="Medium"?"&#128993;":"&#128308;";return `<span class="rb ${c}">${d} ${l}</span>`;}
+function bmiColor(c){return c==="Underweight"?"#3b82f6":c==="Normal"?"#22c55e":c==="Overweight"?"#f59e0b":"#ef4444";}
+function fcolor(v){return v==="Yes"?"var(--red)":v==="No"?"var(--green)":"var(--muted)";}
+
+function renderP4(pts){TBL_DATA=pts;applySort();}
+
+function applySort(){
+  const s=TBL.sort,d=TBL.dir;
+  let sorted=[...TBL_DATA].sort((a,b)=>{let va=a[s],vb=b[s];if(typeof va==="string")return d*va.localeCompare(vb);return d*(va-vb);});
+  const q=TBL.q.toLowerCase();
+  if(q) sorted=sorted.filter(p=>String(p.id).includes(q)||String(p.age).includes(q)||(p.gender||"").toLowerCase().includes(q)||(p.bloodType||"").toLowerCase().includes(q)||(p.bmiClass||"").toLowerCase().includes(q)||(p.diabetes||"").toLowerCase().includes(q)||(p.smoking||"").toLowerCase().includes(q)||(p.riskLevel||"").toLowerCase().includes(q));
+  const total=sorted.length,pages=Math.ceil(total/TBL.ps)||1;
+  if(TBL.page>pages) TBL.page=1;
+  const start=(TBL.page-1)*TBL.ps;
+  const pg=sorted.slice(start,start+TBL.ps);
+  document.getElementById("tbl-cnt").textContent=`${total} patient${total!==1?"s":""}`;
+  ["id","age","gender","bloodType","bmi","bmiClass","temp","diabetes","smoking","riskScore"].forEach(k=>{
+    const el=document.getElementById("si-"+k);
+    if(!el) return;
+    el.className="si"+(k===s?" on":"");
+    el.textContent=k===s?(d===1?"&#8593;":"&#8595;"):"&#8597;";
+    el.innerHTML=k===s?(d===1?"&#8593;":"&#8595;"):"&#8597;";
+  });
+  document.getElementById("pt-body").innerHTML=pg.map(p=>`<tr data-id="${p.id}" class="${p.id===TBL.sel?"sel":""}"><td><b>${p.id}</b></td><td>${p.age}</td><td>${gtag(p.gender)} ${p.gender}</td><td><span class="tag" style="background:#f1f5f9">${p.bloodType}</span></td><td>${p.bmi.toFixed(1)}</td><td><span style="color:${bmiColor(p.bmiClass)};font-weight:700">${p.bmiClass}</span></td><td>${p.temp>=99.5?"&#127777; ":""}<b>${p.temp.toFixed(2)}</b></td><td style="color:${fcolor(p.diabetes)};font-weight:600">${p.diabetes}</td><td style="color:${fcolor(p.smoking)};font-weight:600">${p.smoking}</td><td>${rbadge(p.riskLevel)} <small style="color:var(--muted)">${p.riskScore}</small></td></tr>`).join("");
+  let btns=`<button class="pb" ${TBL.page===1?"disabled":""} onclick="gotoPage(${TBL.page-1})">&#8249;</button>`;
+  const s2=Math.max(1,TBL.page-3),e2=Math.min(pages,s2+6);
+  for(let i=s2;i<=e2;i++) btns+=`<button class="pb ${i===TBL.page?"on":""}" onclick="gotoPage(${i})">${i}</button>`;
+  btns+=`<button class="pb" ${TBL.page===pages?"disabled":""} onclick="gotoPage(${TBL.page+1})">&#8250;</button>`;
+  document.getElementById("pt-pagi").innerHTML=`<span>Page ${TBL.page} of ${pages} &middot; ${total} records</span><div class="pagi-btns">${btns}</div>`;
+  document.getElementById("pt-body").querySelectorAll("tr").forEach(row=>{
+    row.addEventListener("click",()=>{TBL.sel=+row.dataset.id;showDetail(+row.dataset.id);document.getElementById("pt-body").querySelectorAll("tr").forEach(r=>r.classList.toggle("sel",+r.dataset.id===TBL.sel));});
+  });
+}
+
+function gotoPage(p){TBL.page=p;applySort();}
+
+function showDetail(id){
+  const p=ALL.find(x=>x.id===id);if(!p) return;
+  const rl=p.riskLevel==="Low"?"rf-low":p.riskLevel==="Medium"?"rf-med":"rf-hi";
+  const fp=Math.round(p.riskScore/REAL_MAX_RISK*100);
+  const eg=p.gender==="Male"?"&#9794;":p.gender==="Female"?"&#9792;":"?";
+  const rColor=p.riskLevel==="Low"?"var(--green)":p.riskLevel==="Medium"?"var(--amber)":"var(--red)";
+  let notes=p.riskLevel==="High"?"High-risk patient requiring priority clinical review. Consider immediate intervention.":p.riskLevel==="Medium"?"Moderate risk. Schedule regular follow-up and monitor for risk factor progression.":"Low-risk profile. Standard monitoring schedule recommended.";
+  if(p.bmiClass==="Obese") notes+=" Obesity management program recommended.";
+  if(p.bmiClass==="Overweight") notes+=" Weight management counseling advised.";
+  if(p.diabetes==="Yes") notes+=" Active diabetes management required.";
+  if(p.smoking==="Yes") notes+=" Smoking cessation support recommended.";
+  if(p.fever) notes+=" Fever detected — investigate possible infection or inflammatory condition.";
+  document.getElementById("pd-cont").innerHTML=`<div class="card"><div class="pd-hdr"><div class="pd-av">${eg}</div><div><div style="font-size:17px;font-weight:700">Patient #${p.id}</div><div style="font-size:12px;opacity:.75">${p.gender} &middot; Age ${p.age} &middot; ${p.ageGroup} &middot; Blood ${p.bloodType}</div><div style="margin-top:6px">${rbadge(p.riskLevel)}</div></div></div><div class="pd-body"><div class="dg"><div class="di"><div class="dl">BMI</div><div class="dv">${p.bmi.toFixed(2)}</div><div style="font-size:10px;color:${bmiColor(p.bmiClass)};font-weight:700;margin-top:2px">${p.bmiClass}</div></div><div class="di"><div class="dl">Temperature</div><div class="dv ${p.fever?"yes":""}">${p.temp.toFixed(2)}F${p.fever?" &#127777;":""}</div><div style="font-size:10px;margin-top:2px;color:${p.fever?"var(--red)":"var(--green)"}">${p.fever?"Fever":"Normal"}</div></div><div class="di"><div class="dl">Diabetes</div><div class="dv ${p.diabetes==="Yes"?"yes":p.diabetes==="No"?"no":""}">${p.diabetes}</div></div><div class="di"><div class="dl">Smoking</div><div class="dv ${p.smoking==="Yes"?"yes":p.smoking==="No"?"no":""}">${p.smoking}</div></div><div class="di"><div class="dl">Height</div><div class="dv">${p.height.toFixed(1)} cm</div></div><div class="di"><div class="dl">Weight</div><div class="dv">${p.weight.toFixed(1)} kg</div></div></div><div class="rmtr"><div class="rmtr-row"><span style="font-size:11.5px;font-weight:700">Composite Risk Score</span><span style="font-size:14px;font-weight:800;color:${rColor}">${p.riskScore} / ${REAL_MAX_RISK}</span></div><div class="rmtr-bar"><div class="${rl} rmtr-fill" style="width:${fp}%"></div></div><div class="rmtr-sc"><span>0</span><span>Low</span><span>Medium</span><span>High</span><span>${REAL_MAX_RISK}</span></div></div><div style="margin-top:14px;font-size:11px;color:var(--muted);line-height:1.65;background:var(--bg);border-radius:7px;padding:12px"><b style="color:var(--text)">&#128270; Clinical Notes:</b><br>${notes}</div></div></div>`;
+}
+
+// ---- HEADER ----
+function updateHeader(pts){
+  document.getElementById("h-total").textContent=ALL.length;
+  const fp=document.getElementById("h-fpill");
+  if(pts.length<ALL.length){fp.style.display="";document.getElementById("h-fcount").textContent=pts.length;}
+  else fp.style.display="none";
+}
+
+// ---- RENDER ALL ----
+function renderAll(){
+  const pts=filtered();
+  renderP1(pts);
+  if(document.getElementById("p2").classList.contains("on")) renderP2(pts);
+  if(document.getElementById("p3").classList.contains("on")) renderP3();
+  renderP4(pts);
+  updateHeader(pts);
+  updateFilterCounts();
+}
+
+// ---- NAV ----
+function initNav(){
+  document.querySelectorAll(".nbtn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      document.querySelectorAll(".nbtn").forEach(b=>b.classList.remove("on"));
+      document.querySelectorAll(".page").forEach(p=>p.classList.remove("on"));
+      btn.classList.add("on");
+      const pg=btn.dataset.p;
+      document.getElementById("p"+pg).classList.add("on");
+      const pts=filtered();
+      if(pg==="2") renderP2(pts);
+      if(pg==="3") renderP3();
+    });
+  });
+}
+
+// ---- EVENTS ----
+function initEvents(){
+  const keyMap={age:"ageGroup",gender:"gender",blood:"bloodType",bmic:"bmiClass",diab:"diabetes",smok:"smoking"};
+  document.querySelectorAll(".fcheck input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("change",()=>{
+      const fk=cb.dataset.fkey;
+      if(cb.checked) F[fk].add(cb.value);else F[fk].delete(cb.value);
+      renderAll();
+    });
+  });
+  document.getElementById("btn-reset").addEventListener("click",()=>{
+    document.querySelectorAll(".fcheck input[type=checkbox]").forEach(cb=>{cb.checked=false;});
+    ["age","gender","blood","bmic","diab","smok"].forEach(k=>F[k].clear());
+    F.riskThr=4;
+    document.getElementById("risk-thr").value=4;
+    document.getElementById("risk-thr-val").textContent=4;
+    renderAll();
+  });
+  document.getElementById("risk-thr").addEventListener("input",function(){
+    F.riskThr=+this.value;
+    document.getElementById("risk-thr-val").textContent=this.value;
+    renderAll();
+  });
+  document.querySelectorAll(".pt th[data-s]").forEach(th=>{
+    th.addEventListener("click",()=>{
+      const s=th.dataset.s;
+      if(TBL.sort===s) TBL.dir*=-1;else{TBL.sort=s;TBL.dir=1;}
+      TBL.page=1;applySort();
+    });
+  });
+  document.getElementById("pt-search").addEventListener("input",function(){TBL.q=this.value;TBL.page=1;applySort();});
+}
+
+// ---- INIT ----
+document.addEventListener("DOMContentLoaded",()=>{
+  buildFilters();
+  buildCohortDropdowns();
+  initNav();
+  initEvents();
+  renderAll();
+});
+</script>
+</body>
+</html>
